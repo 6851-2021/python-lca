@@ -1,7 +1,3 @@
-import numpy as np
-import math
-import itertools
-import random
 from pm_rmq import pm_rmq_query, pm_rmq_preprocess
 
 class Node:
@@ -71,6 +67,7 @@ if __name__ == '__main__':
 
     preprocessed_tree = lca_preprocessing(a)
     node = lca_query(h, c, preprocessed_tree)
+    print("Example:")
     print("LCA of {} and {}".format(h.data, c.data))
     print("    {}".format(node.data))
 

@@ -85,10 +85,6 @@ def pm_rmq_preprocess(arr):
         for start_query in range(0, chunk_size):
             for end_query in range(start_query + 1, chunk_size + 1):
                 lookup_index = tuple(step_sequence) + (start_query, end_query)
-                # print("lookup:", lookup_index)
-                # print("    with start/end:", start_query, end_query)
-                # print("    with sequence:", sequence[start_query : end_query])
-                # print("    with value:", np.argmin(sequence[start_query : end_query]))
                 lookup[lookup_index] = np.argmin(sequence[start_query : end_query])
 
     # 3) Construct "top" array by brute force and "bottom" array of pointers
@@ -156,14 +152,6 @@ def test_method_2():
     print("Array:")
     print(arr)
     preprocessed_arr = pm_rmq_preprocess(arr)
-    # _, top, top_soln, bot = preprocessed_arr
-    # print("--------------")
-    # print("Preprocessing (top):")
-    # print(top)
-    # print("--------------")
-    # print("Preprocessing (bot):")
-    # print(bot)
-    # print("--------------")
     q1 = pm_rmq_query(preprocessed_arr, 3, 10)
     print("Query [3, 10): ", q1)
     q2 = pm_rmq_query(preprocessed_arr, 5, 6)
@@ -173,10 +161,6 @@ def test_method_2():
         for j in range(i + 1, len(arr)):
             expected = i + np.argmin(arr[i:j])
             actual = pm_rmq_query(preprocessed_arr, i, j)
-            #print("i = {}, j = {}".format(i, j))
-            #print("    expected = {}".format(expected))
-            #print("    actual = {}".format(actual))
-            #print("----------")
             assert(expected == actual)
     print("All tests passed!")
 
