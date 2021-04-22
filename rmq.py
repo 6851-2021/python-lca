@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import itertools
+import random
 
 #################################################
 ### Solution 1: O(1) query, O(n log n) space ####
@@ -22,6 +23,8 @@ def preprocess_naive(arr):
     return solutions
 
 def query(arr, solutions, start, end):
+    assert(start != end)
+
     largest_pow = math.floor(math.log(end - start, 2))
     interval_size = 2 ** largest_pow
 
@@ -70,7 +73,7 @@ def preprocess_with_indirection(arr):
 
     # 2) Construct full lookup table
     #    * Enumerate all possible 2^{chunk_size} +- sqeuences
-    lookup = np.zeros(shape = ((2, ) * (chunk_size - 1)) + (chunk_size, chunk_size + 1))
+    lookup = np.zeros(shape = ((2, ) * (chunk_size - 1)) + (chunk_size, chunk_size + 1), dtype = int)
     for step_sequence in itertools.product([0,1], repeat = chunk_size - 1):
         sequence = np.zeros(shape = (chunk_size, ), dtype = int)
         print("CHUNK SIZE:", chunk_size)
@@ -88,24 +91,70 @@ def preprocess_with_indirection(arr):
                 lookup[lookup_index] = np.argmin(sequence[start_query : end_query])
 
     # 3) Construct "top" array by brute force and "bottom" array of pointers
-    chunk_summaries = np.zeros(num_chunks)
+    chunk_summaries = np.zeros(num_chunks, dtype = int)
     bottom_lookup = [] # a list of *views* onto the full lookup table
     for i in range(num_chunks):
         start_chunk = i * chunk_size
         end_chunk = (i + 1) * chunk_size
         chunk = arr[start_chunk : end_chunk] - arr[start_chunk]
         chunk_sequence = [0 if d == -1 else 1 for d in np.diff(chunk)]
-        chunk_summaries[i] = start_chunk + np.argmin(chunk)
+        chunk_summaries[i] = arr[start_chunk + np.argmin(chunk)]
         print("chunk_sequence:", tuple(chunk_sequence))
         bottom_lookup.append(lookup[tuple(chunk_sequence)])
 
-    return (chunk_summaries, bottom_lookup)
+    # 4) Preprocess "top" array with O(n log n) space approach
+    top_preprocessing = preprocess_naive(chunk_summaries)
+
+    return (chunk_summaries, top_preprocessing, bottom_lookup)
+
+def query_with_indirection(arr, top, top_soln, bottom_lookup, start_index, end_index):
+    chunk_size = math.floor(1/2 * math.log(len(arr), 2))
+    num_chunks = math.ceil(len(arr)/chunk_size)
+
+    start_chunk = start_index // chunk_size
+    end_chunk = end_index // chunk_size
+
+    start_within_chunk = start_index - start_chunk * chunk_size
+    end_within_chunk = end_index - end_chunk * chunk_size
+
+    if start_chunk == end_chunk:
+        chunk_lookup = bottom_lookup[start_chunk]
+        return start_index + chunk_lookup[start_within_chunk, end_within_chunk]
+    else:
+        # Start value
+        start_lookup = bottom_lookup[start_chunk]
+        argmin_start = start_index + start_lookup[start_within_chunk, -1]
+        min_start = arr[argmin_start]
+
+        # End value
+        if end_within_chunk != 0:
+            end_lookup = bottom_lookup[end_chunk]
+            argmin_end = end_chunk * chunk_size + end_lookup[0, end_within_chunk]
+            min_end = arr[argmin_end]
+        else:
+            argmin_end = -1
+            min_end = np.inf
+
+        # Intermediate values
+        if start_chunk + 1 != end_chunk:
+            argmin_chunk = query(top, top_soln, start_chunk + 1, end_chunk)
+            argmin_intermediate = argmin_chunk * chunk_size + bottom_lookup[argmin_chunk][0, -1]
+            min_intermediate = arr[argmin_intermediate]
+        else:
+            argmin_intermediate = -1
+            min_intermediate = np.inf
+
+        # Return minimum value
+        argmins = [argmin_start, argmin_intermediate, argmin_end]
+        mins = [min_start, min_intermediate, min_end]
+        return argmins[np.argmin(mins)]
 
 def test_method_2():
-    arr = np.array([0, 1, 2, 1, 0, 1, 2, 3, 2, 3, 2, 1, 2, 1, 0, 1])
+    steps = [random.choice([0,1]) for _ in range(100)]
+    arr = np.cumsum(steps)
     print("Array:")
     print(arr)
-    top, bot = preprocess_with_indirection(arr)
+    top, top_soln, bot = preprocess_with_indirection(arr)
     print("--------------")
     print("Preprocessing (top):")
     print(top)
@@ -113,6 +162,23 @@ def test_method_2():
     print("Preprocessing (bot):")
     print(bot)
     print("--------------")
+    q1 = query_with_indirection(arr, top, top_soln, bot, 3, 10)
+    print("Query [3, 10): ", q1)
+    q2 = query_with_indirection(arr, top, top_soln, bot, 5, 6)
+    print("Query [5, 6): ", q2)
+    
+    for i in range(len(arr)):
+        for j in range(i + 1, len(arr)):
+            expected = i + np.argmin(arr[i:j])
+            actual = query_with_indirection(arr, top, top_soln, bot, i, j)
+            print("i = {}, j = {}".format(i, j))
+            print("    expected = {}".format(expected))
+            print("    actual = {}".format(actual))
+            print("----------")
+            assert(expected == actual)
+    print("All tests passed!")
+
+
 
 
 if __name__ == '__main__':
